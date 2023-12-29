@@ -1,0 +1,15 @@
+{
+    "namespace": "confluent.io.examples.serialization.avro",
+    "name": "Payment",
+    "type": "record",
+    "fields": [
+        {"name": "id", "type": "string"},
+        {"name": "ts", "type": "long"}, 
+        {"name": "date_ts", "type": "string"}, 
+        {"name": "destination", "type": "string"},
+        {"name": "source", "type": "string"},
+        {"name": "currency", "type": "string"},
+        {"name": "amount", "type": "double"},
+        {"name": "status", "type": "string"} 
+    ]
+}

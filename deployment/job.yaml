@@ -1,0 +1,44 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: synth-payments-job 
+  labels:
+    job: synth-payments
+spec:  
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        job: synth-payments
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: synth-payments
+        image: mcolomerc/synth-payment:0.0.2
+        env:
+          - name: NUM_PAYMENTS
+            value: "100"
+          - name: KAFKA_BOOTSTRAP_SERVER
+            value: "<KAFKA_BOOTSTRAP_SERVER>:9092"
+          - name: KAFKA_SASL_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: kafka-cluster-key
+                key: username 
+          - name: KAFKA_SASL_PASSWORD 
+            valueFrom:
+              secretKeyRef:
+                name: kafka-cluster-key
+                key: password
+          - name: SCHEMA_REGISTRY_ENDPOINT
+            value: "<SCHEMA_REGISTRY_ENDPOINT>"
+          - name: SCHEMA_REGISTRY_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: sr-cluster-key
+                key: username
+          - name: SCHEMA_REGISTRY_API_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: sr-cluster-key
+                key: password

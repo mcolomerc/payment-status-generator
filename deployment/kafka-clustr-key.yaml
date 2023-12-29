@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kafka-cluster-key
+type: kubernetes.io/basic-auth
+stringData:
+  username: <API_KEY> # required field for kubernetes.io/basic-auth
+  password: <API_SECRET> # required field for kubernetes.io/basic-auth
