@@ -220,7 +220,11 @@ spec:
               key: password
 ```
 
-* Example log output:
+## Output
+
+Example outputs:
+
+* Workers: 100 
 
 ```shell
  Starting producer... [100] payments took 6.345051222s
@@ -232,3 +236,24 @@ spec:
 19:08:09.298 [info]     NumGC = 2
 ```
 
+```shell
+ Starting producer... [10000] payments took 3m57.345834924s
+
+19:56:36.785 [info] Number of runnable goroutines: 101
+19:56:36.785 [info] Alloc = 45 MiB
+19:56:36.785 [info]     TotalAlloc = 348 MiB
+19:56:36.785 [info]     Sys = 61 MiB
+19:56:36.785 [info]     NumGC = 15
+```
+
+* Workers: 1000
+
+```shell
+ Starting producer... [10000] payments took 27.483902633s
+
+20:00:50.305 [info] Number of runnable goroutines: 1003
+20:00:50.306 [info] Alloc = 36 MiB
+20:00:50.306 [info]     TotalAlloc = 259 MiB
+20:00:50.306 [info]     Sys = 78 MiB
+20:00:50.306 [info]     NumGC = 11
+```
