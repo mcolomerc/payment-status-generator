@@ -1,8 +1,12 @@
 <img src="https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white" /><img src="https://img.shields.io/badge/Apache_Kafka-231F20?style=for-the-badge&logo=apache-kafka&logoColor=white" /><img src="https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white" />
 
-# Synthetic Payment Generator
+# Payment Status Generator
 
-Synthetic data is artificial data that is generated from original data and a model that is trained to reproduce the characteristics and structure of the original data. This means that synthetic data and original data should deliver very similar results when undergoing the same statistical analysis.
+Datagen connector is frequently used to generate synthetic data for testing purposes, but sometimes is difficult to replicate different scenarios from the business point of view.  This project tries to go one step forward, taking a generic payment scenario, when the payment follows a workflow with different status updates. 
+
+Basically, the generator will simulate a payment workflow, generating different status updates for each payment. This approach allows to test different scenarios about required throughputs, scaling, stream processing or building analytics.
+
+*Synthetic data is information that's artificially generated rather than produced by real-world events* : [Synthetic Data](https://en.wikipedia.org/wiki/Synthetic_data)
 
 ## Overview
 
