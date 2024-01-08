@@ -65,13 +65,13 @@ For each generated payment, the worker will pick up a workflow and genereate all
 
 One topic is used for each payment status update, the producer will try to create the topics if they don't exist:
 
-* payment-initiated
-* payment-completed
-* payment-failed
-* payment-canceled
-* payment-validated
-* payment-accounted
-* payment-rejected
+* *payment-initiated*
+* *payment-completed*
+* *payment-failed*
+* *payment-canceled*
+* *payment-validated*
+* *payment-accounted*
+* *payment-rejected*
   
 ## Configuration
 

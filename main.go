@@ -6,13 +6,17 @@ import (
 	"mcolomerc/synth-payment-producer/pkg/config"
 	"mcolomerc/synth-payment-producer/pkg/datagen"
 	"mcolomerc/synth-payment-producer/pkg/producer"
+	"mcolomerc/synth-payment-producer/pkg/stats"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"time"
 
 	"github.com/m-mizutani/zlog"
 	"github.com/m-mizutani/zlog/filter"
+
+	"github.com/mackerelio/go-osstat/cpu"
 )
 
 var cnf config.Config
@@ -28,6 +32,8 @@ var workflowHandler datagen.Workflow
 
 var logger *zlog.Logger
 
+var sts *stats.Stats
+
 func init() {
 	logger = zlog.New(zlog.WithFilters(filter.Tag()))
 
@@ -39,14 +45,22 @@ func init() {
 	kProd = producer.NewProducer(cnf)
 	paymentGenerator = datagen.NewDatagen(cnf.Datagen.Sources, cnf.Datagen.Destinations)
 	workflowHandler = datagen.NewWorkflowHandler(cnf)
+
+	sts = stats.NewStats()
+
 }
 
 func main() {
+
+	for _, st := range datagen.GetStatusList() {
+		sts.AddState(st.String())
+	}
+
 	logger.Info("Starting producer...")
 	logger.With("bootstrap.server", cnf.Kafka.BootstrapServers).Info("Using: ")
 
 	numPayments := cnf.Datagen.Payments
-	message := fmt.Sprintf("\n Starting producer... [%v] payments", numPayments)
+	message := fmt.Sprintf("Starting producer... [%v] payments", numPayments)
 	defer timer(message)()
 
 	// Create topics
@@ -87,7 +101,7 @@ func worker(w int, paymentsCh <-chan model.Payment, done chan<- bool) {
 		wk := workflowHandler.GetWorkflow()
 		logger.Info(" Worker-%v : Producing payment: %v : Workflow: %v", w, payment, wk)
 		// Get workflow status
-		statusDone := make(chan bool, len(wk))
+		statusDone := make(chan model.Payment, len(wk))
 		for i := range wk {
 			go func(i int, payment model.Payment) {
 				payment.Status = wk[i].String()
@@ -97,11 +111,12 @@ func worker(w int, paymentsCh <-chan model.Payment, done chan<- bool) {
 				payment.Date_ts = time.Now().Format(time.RFC3339)
 				logger.Info("\t Worker-%v : Producing payment status update: %v ", w, payment)
 				kProd.Produce(payment)
-				statusDone <- true
+				statusDone <- payment
 			}(i, payment)
 		}
 		for i := 0; i < len(wk); i++ {
-			<-statusDone
+			payment := <-statusDone
+			sts.IncState(payment.Status) // Increment state counter
 		}
 		close(statusDone)
 		done <- true
@@ -111,9 +126,12 @@ func worker(w int, paymentsCh <-chan model.Payment, done chan<- bool) {
 func timer(name string) func() {
 	start := time.Now()
 	return func() {
-		logger.Info("%s took %v\n", name, time.Since(start))
+		logger.Info("--------------------")
+		logger.Info("%s took %v", name, time.Since(start))
 		logger.Info("Number of runnable goroutines: %v", runtime.NumGoroutine())
 		PrintMemUsage()
+		GetCPUUsage()
+		sts.PrintStates()
 	}
 }
 
@@ -124,4 +142,25 @@ func PrintMemUsage() {
 	logger.Info("\tTotalAlloc = %v MiB", m.TotalAlloc/1024/1024)
 	logger.Info("\tSys = %v MiB", m.Sys/1024/1024)
 	logger.Info("\tNumGC = %v\n", m.NumGC)
+	logger.Info("--------------------")
+}
+
+func GetCPUUsage() {
+	logger.Info("Num CPUs..." + strconv.Itoa(runtime.NumCPU()))
+	before, err := cpu.Get()
+	if err != nil {
+		logger.Info("%s\n", err)
+		return
+	}
+	time.Sleep(time.Duration(1) * time.Second)
+	after, err := cpu.Get()
+	if err != nil {
+		logger.Info("%s\n", err)
+		return
+	}
+	total := float64(after.Total - before.Total)
+	logger.Info("CPU User: %f %%", float64(after.User-before.User)/total*100)
+	logger.Info("CPU System: %f %%", float64(after.System-before.System)/total*100)
+	logger.Info("CPU Idle: %f %%", float64(after.Idle-before.Idle)/total*100)
+	logger.Info("--------------------")
 }

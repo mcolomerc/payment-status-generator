@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+
 	model "mcolomerc/synth-payment-producer/pkg/avro"
 	"mcolomerc/synth-payment-producer/pkg/config"
 	"os"
@@ -15,7 +15,11 @@ import (
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry"
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde"
 	"github.com/confluentinc/confluent-kafka-go/v2/schemaregistry/serde/avro"
+	"github.com/m-mizutani/zlog"
+	"github.com/m-mizutani/zlog/filter"
 )
+
+var logger *zlog.Logger
 
 type Producer struct {
 	kafka          *kafka.Producer
@@ -25,6 +29,8 @@ type Producer struct {
 }
 
 func NewProducer(config config.Config) Producer {
+	logger = zlog.New(zlog.WithFilters(filter.Tag()))
+
 	kConfig := &kafka.ConfigMap{
 		"bootstrap.servers": config.Kafka.BootstrapServers,
 		"client.id":         config.Kafka.ClientId,
@@ -37,12 +43,12 @@ func NewProducer(config config.Config) Producer {
 		kConfig.SetKey(k, v)
 	}
 	vnum, vstr := kafka.LibraryVersion()
-	log.Printf("Library Version: %s (0x%x)\n", vstr, vnum)
-	log.Printf("Link Info:       %s\n", kafka.LibrdkafkaLinkInfo)
+	logger.Info("Library Version: %s (0x%x)", vstr, vnum)
+	logger.Info("Link Info:       %s", kafka.LibrdkafkaLinkInfo)
 
 	producer, err := kafka.NewProducer(kConfig)
 	if err != nil {
-		fmt.Printf("Failed to create producer: %s", err)
+		logger.Info("Failed to create producer: %s", err)
 		os.Exit(1)
 	}
 
@@ -51,12 +57,12 @@ func NewProducer(config config.Config) Producer {
 		config.SchemaRegistry.ApiKey,
 		config.SchemaRegistry.ApiSecret))
 	if err != nil {
-		log.Printf("Failed to create schema registry client: %s\n", err)
+		logger.Info("Failed to create schema registry client: %s\n", err)
 		os.Exit(1)
 	}
 	ser, err := avro.NewSpecificSerializer(client, serde.ValueSerde, avro.NewSerializerConfig())
 	if err != nil {
-		log.Printf("Failed to create serializer: %s\n", err)
+		logger.Info("Failed to create serializer: %s\n", err)
 		os.Exit(1)
 	}
 	// Listen to all the events on the default events channel
@@ -66,9 +72,9 @@ func NewProducer(config config.Config) Producer {
 			case *kafka.Message:
 				m := ev
 				if m.TopicPartition.Error != nil {
-					log.Printf("Delivery failed: %v", m.TopicPartition.Error)
+					logger.Info("Delivery failed: %v", m.TopicPartition.Error)
 				} else {
-					log.Printf("Delivered message to topic %s [%d] at offset %v",
+					logger.Info("Delivered message to topic %s [%d] at offset %v",
 						*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 				}
 			case kafka.Error:
@@ -77,13 +83,16 @@ func NewProducer(config config.Config) Producer {
 				// https://github.com/confluentinc/librdkafka/blob/master/STATISTICS.md
 				var stats map[string]interface{}
 				json.Unmarshal([]byte(e.String()), &stats)
-				log.Printf("Stats: %v messages (%v bytes) produced",
+				logger.Info("librdkafka Stats: %v messages (%v bytes) produced",
 					stats["txmsgs"], stats["txmsg_bytes"])
-				log.Printf("Stats: %v messages ", stats["msg_cnt"])
-				log.Printf("Stats: %v requests sent  (%v bytes) bytes transmitted to Kafka brokers\n",
-					stats["tx"], stats["tx_bytes"])
+				logger.Info("librdkafka: %v messages ", stats["msg_cnt"])
+				logger.Info("librdkafka: %v number of bytes received from Kafka brokers", stats["rx_bytes"])
+				mb := stats["txmsg_bytes"]
+				mbb := mb.(float64) / 1024 / 1024
+				logger.Info("librdkafka: %v requests sent  (%v bytes / %v Mbytes) bytes transmitted to Kafka brokers\n",
+					stats["tx"], stats["tx_bytes"], mbb)
 			default:
-				log.Printf("Ignored event: %s\n", ev)
+				logger.Info("Ignored event: %s\n", ev)
 			}
 		}
 	}()
@@ -101,7 +110,7 @@ func (p Producer) Produce(payment model.Payment) {
 	// Serialize Payment
 	payload, err := p.ser.Serialize(topic, &payment)
 	if err != nil {
-		log.Printf("Failed to serialize payload: %s\n", err)
+		logger.Info("Failed to serialize payload: %s\n", err)
 		os.Exit(1)
 	}
 	// Produce Payment status update
@@ -112,7 +121,7 @@ func (p Producer) Produce(payment model.Payment) {
 		Headers:        []kafka.Header{{Key: payment.Id, Value: []byte(payment.Status)}},
 	}, nil)
 	if err != nil {
-		log.Printf("Failed to produce message: %s\n", err)
+		logger.Info("Failed to produce message: %s\n", err)
 		os.Exit(1)
 	}
 	// Flush and close the producer and the events channel
@@ -129,27 +138,8 @@ func (p Producer) Close() {
 
 func (p Producer) Flush() {
 	for p.kafka.Flush(10000) > 0 {
-		log.Printf(" Still waiting to flush outstanding messages ")
+		logger.Info(" Still waiting to flush outstanding messages ")
 	}
-}
-
-func (p Producer) QueryTopics() {
-	// Create topics
-	admin, err := kafka.NewAdminClientFromProducer(p.kafka)
-	if err != nil {
-		log.Printf("Failed to create admin client: %s\n", err)
-		os.Exit(1)
-	}
-	topic := "payment-initiated"
-	describeTopicsResult, err := admin.GetMetadata(&topic, true, 30) // 30s timeout
-	if err != nil {
-		log.Printf("Failed to get metadata: %s\n", err)
-		os.Exit(1)
-	}
-	for s, _ := range describeTopicsResult.Topics {
-		log.Printf("Topic: %s\n", s)
-	}
-
 }
 
 func (p Producer) CreateTopics() {
@@ -158,7 +148,7 @@ func (p Producer) CreateTopics() {
 	// Create topics
 	admin, err := kafka.NewAdminClientFromProducer(p.kafka)
 	if err != nil {
-		log.Printf("Failed to create admin client: %s\n", err)
+		logger.Info("Failed to create admin client: %s\n", err)
 		os.Exit(1)
 	}
 	var topicsSpec []kafka.TopicSpecification
@@ -172,11 +162,11 @@ func (p Producer) CreateTopics() {
 
 	results, err := admin.CreateTopics(ctx, topicsSpec)
 	if err != nil {
-		log.Printf("Failed to create topics: %s\n", err)
+		logger.Info("Failed to create topics: %s\n", err)
 		os.Exit(1)
 	}
 	for _, result := range results {
-		log.Printf("%s\n", result)
+		logger.Info("%s", result)
 	}
 	return
 }
