@@ -70,7 +70,7 @@ func main() {
 		payment := paymentGenerator.GeneratePayment() // Generate payment
 		paymentsCh <- payment
 	}
-	done := make(chan bool, numPayments)
+	done := make(chan string, numPayments)
 	workers := cnf.Datagen.Workers
 
 	logger.Info(" Using workers: %v", workers)
@@ -78,19 +78,22 @@ func main() {
 		go worker(i, paymentsCh, done)
 	}
 	for i := 0; i < numPayments; i++ {
-		<-done
+		workflow := <-done
+		sts.AddWorkflow(workflow) // Add workflow
 	}
+	// Close Producer
 	kProd.Flush()
 	kProd.Close()
+	// Print stats
+	sts.Print()
 }
 
 /**
  * Worker
  */
-func worker(w int, paymentsCh <-chan model.Payment, done chan<- bool) {
+func worker(w int, paymentsCh <-chan model.Payment, done chan<- string) {
 	for payment := range paymentsCh {
 		wk := workflowHandler.GetWorkflow()
-		sts.AddWorkflow(fmt.Sprintf("%v", wk))
 		logger.Info(" Worker-%v : Producing payment: %v : Workflow: %v", w, payment, wk)
 		// Get workflow status
 		statusDone := make(chan model.Payment, len(wk))
@@ -111,21 +114,22 @@ func worker(w int, paymentsCh <-chan model.Payment, done chan<- bool) {
 			sts.IncState(payment.Status) // Increment state counter
 		}
 		close(statusDone)
-		done <- true
+		done <- fmt.Sprintf("%v", wk)
 	}
 }
 
 func timer(name string) func() {
 	start := time.Now()
 	return func() {
-		sts.PrintWorkflows()
-		sts.PrintStates()
+
 		logger.Info("----------------------------------------")
 		logger.Info("%s took %v", name, time.Since(start))
+		logger.Info("----------------------------------------")
 		logger.Info("-------Go Routines---------")
 		logger.Info("Number of runnable goroutines: %v", runtime.NumGoroutine())
 		PrintMemUsage()
 		GetCPUUsage()
+		logger.Info("----------------------------------------")
 	}
 }
 
@@ -136,7 +140,7 @@ func PrintMemUsage() {
 	logger.Info("Alloc = %v MiB", m.Alloc/1024/1024)
 	logger.Info("\tTotalAlloc = %v MiB", m.TotalAlloc/1024/1024)
 	logger.Info("\tSys = %v MiB", m.Sys/1024/1024)
-	logger.Info("\tNumGC = %v\n", m.NumGC)
+	logger.Info("\tNumGC = %v", m.NumGC)
 }
 
 func GetCPUUsage() {
@@ -157,5 +161,4 @@ func GetCPUUsage() {
 	logger.Info("CPU User: %f %%", float64(after.User-before.User)/total*100)
 	logger.Info("CPU System: %f %%", float64(after.System-before.System)/total*100)
 	logger.Info("CPU Idle: %f %%", float64(after.Idle-before.Idle)/total*100)
-	logger.Info("--------------------")
 }

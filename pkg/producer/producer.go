@@ -74,7 +74,7 @@ func NewProducer(config config.Config) Producer {
 				if m.TopicPartition.Error != nil {
 					logger.Info("Delivery failed: %v", m.TopicPartition.Error)
 				} else {
-					logger.Info("Delivered message to topic %s [%d] at offset %v",
+					logger.Info("Kafka Producer: Delivered message to topic %s [%d] at offset %v",
 						*m.TopicPartition.Topic, m.TopicPartition.Partition, m.TopicPartition.Offset)
 				}
 			case kafka.Error:
