@@ -83,14 +83,16 @@ func NewProducer(config config.Config) Producer {
 				// https://github.com/confluentinc/librdkafka/blob/master/STATISTICS.md
 				var stats map[string]interface{}
 				json.Unmarshal([]byte(e.String()), &stats)
-				logger.Info("librdkafka Stats: %v messages (%v bytes) produced",
+				logger.Info("------librdkafka---------")
+				logger.Info("Stats: %v messages (%v bytes) produced",
 					stats["txmsgs"], stats["txmsg_bytes"])
-				logger.Info("librdkafka: %v messages ", stats["msg_cnt"])
-				logger.Info("librdkafka: %v number of bytes received from Kafka brokers", stats["rx_bytes"])
+				logger.Info(" %v messages ", stats["msg_cnt"])
+				logger.Info(" %v number of bytes received from Kafka brokers", stats["rx_bytes"])
 				mb := stats["txmsg_bytes"]
 				mbb := mb.(float64) / 1024 / 1024
-				logger.Info("librdkafka: %v requests sent  (%v bytes / %v Mbytes) bytes transmitted to Kafka brokers\n",
+				logger.Info("%v requests sent  (%v bytes / %v Mbytes) bytes transmitted to Kafka brokers\n",
 					stats["tx"], stats["tx_bytes"], mbb)
+
 			default:
 				logger.Info("Ignored event: %s\n", ev)
 			}

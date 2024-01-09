@@ -10,12 +10,10 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-
 	"time"
 
 	"github.com/m-mizutani/zlog"
 	"github.com/m-mizutani/zlog/filter"
-
 	"github.com/mackerelio/go-osstat/cpu"
 )
 
@@ -45,9 +43,7 @@ func init() {
 	kProd = producer.NewProducer(cnf)
 	paymentGenerator = datagen.NewDatagen(cnf.Datagen.Sources, cnf.Datagen.Destinations)
 	workflowHandler = datagen.NewWorkflowHandler(cnf)
-
 	sts = stats.NewStats()
-
 }
 
 func main() {
@@ -60,7 +56,7 @@ func main() {
 	logger.With("bootstrap.server", cnf.Kafka.BootstrapServers).Info("Using: ")
 
 	numPayments := cnf.Datagen.Payments
-	message := fmt.Sprintf("Starting producer... [%v] payments", numPayments)
+	message := fmt.Sprintf("Generating... [%v] payments", numPayments)
 	defer timer(message)()
 
 	// Create topics
@@ -76,6 +72,7 @@ func main() {
 	}
 	done := make(chan bool, numPayments)
 	workers := cnf.Datagen.Workers
+
 	logger.Info(" Using workers: %v", workers)
 	for i := 0; i < workers; i++ { // Spawn workers
 		go worker(i, paymentsCh, done)
@@ -88,17 +85,12 @@ func main() {
 }
 
 /**
- * @title worker
- * @description
- * @param records
- * @param producer
- * @param done
- * @return
+ * Worker
  */
 func worker(w int, paymentsCh <-chan model.Payment, done chan<- bool) {
-	defer timer("Worker")()
 	for payment := range paymentsCh {
 		wk := workflowHandler.GetWorkflow()
+		sts.AddWorkflow(fmt.Sprintf("%v", wk))
 		logger.Info(" Worker-%v : Producing payment: %v : Workflow: %v", w, payment, wk)
 		// Get workflow status
 		statusDone := make(chan model.Payment, len(wk))
@@ -126,26 +118,29 @@ func worker(w int, paymentsCh <-chan model.Payment, done chan<- bool) {
 func timer(name string) func() {
 	start := time.Now()
 	return func() {
-		logger.Info("--------------------")
+		sts.PrintWorkflows()
+		sts.PrintStates()
+		logger.Info("----------------------------------------")
 		logger.Info("%s took %v", name, time.Since(start))
+		logger.Info("-------Go Routines---------")
 		logger.Info("Number of runnable goroutines: %v", runtime.NumGoroutine())
 		PrintMemUsage()
 		GetCPUUsage()
-		sts.PrintStates()
 	}
 }
 
 func PrintMemUsage() {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
+	logger.Info("-------Memory------")
 	logger.Info("Alloc = %v MiB", m.Alloc/1024/1024)
 	logger.Info("\tTotalAlloc = %v MiB", m.TotalAlloc/1024/1024)
 	logger.Info("\tSys = %v MiB", m.Sys/1024/1024)
 	logger.Info("\tNumGC = %v\n", m.NumGC)
-	logger.Info("--------------------")
 }
 
 func GetCPUUsage() {
+	logger.Info("-------CPU------")
 	logger.Info("Num CPUs..." + strconv.Itoa(runtime.NumCPU()))
 	before, err := cpu.Get()
 	if err != nil {

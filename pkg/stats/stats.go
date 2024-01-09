@@ -9,12 +9,14 @@ import (
 )
 
 type Stats struct {
-	states sync.Map
+	states    sync.Map
+	workflows sync.Map
 }
 
 func NewStats() *Stats {
 	s := Stats{}
 	s.states = sync.Map{}
+	s.workflows = sync.Map{}
 	return &s
 }
 
@@ -30,20 +32,36 @@ func (s *Stats) IncState(state string) {
 	s.states.Store(state, cr.(int)+1)
 }
 
-func (s *Stats) GetStats() map[string]int {
-	stats := make(map[string]int)
-	s.states.Range(func(key, value interface{}) bool {
-		stats[key.(string)] = value.(int)
+func (s *Stats) AddWorkflow(workflow string) {
+	cr, ok := s.workflows.Load(workflow)
+	if !ok {
+		s.workflows.Store(workflow, 1)
+		return
+	}
+	s.workflows.Store(workflow, cr.(int)+1)
+}
+
+func (s *Stats) PrintWorkflows() {
+	fmt.Println("\n ")
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"Workflow", "Count"})
+	total := 0
+	s.workflows.Range(func(key, value interface{}) bool {
+		t.AppendRow([]interface{}{key, value})
+		total += value.(int)
 		return true
 	})
-	return stats
+	t.AppendSeparator()
+	t.AppendFooter(table.Row{"Total", total})
+	t.Render()
 }
 
 func (s *Stats) PrintStates() {
 	fmt.Println("\n ")
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Status", "Events"})
+	t.AppendHeader(table.Row{"Status", "Produced Events"})
 	total := 0
 	s.states.Range(func(key, value interface{}) bool {
 		t.AppendRow([]interface{}{key, value})
@@ -52,6 +70,5 @@ func (s *Stats) PrintStates() {
 	})
 	t.AppendSeparator()
 	t.AppendFooter(table.Row{"Total", total})
-
 	t.Render()
 }
