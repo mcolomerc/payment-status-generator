@@ -2,9 +2,9 @@
 
 # Payment Status Generator
 
-Datagen connector is frequently used to generate synthetic data for testing purposes, but sometimes is difficult to replicate different scenarios from the business point of view.  This project tries to go one step forward, taking a generic payment scenario, when the payment follows a workflow with different status updates. 
+[Datagen](https://www.confluent.io/hub/confluentinc/kafka-connect-datagen) connector is frequently used to generate synthetic data for testing purposes, but sometimes is difficult to replicate different scenarios from the business point of view.  This project tries to go one step forward, taking a generic payment scenario, when the payment follows a workflow with different status updates.
 
-Basically, the generator will simulate a payment workflow, generating different status updates for each payment. This approach allows to test different scenarios about required throughputs, scaling, stream processing or building analytics.
+Basically, this generator will simulate a payment workflow, generating different status updates for each payment. This approach allows to test different scenarios about required throughputs, scaling, stream processing or building analytics.
 
 *Synthetic data is information that's artificially generated rather than produced by real-world events* : [Synthetic Data](https://en.wikipedia.org/wiki/Synthetic_data)
 
@@ -224,38 +224,42 @@ spec:
 
 ## Output
 
-Example outputs:
-
-* Workers: 100 
-
-```shell
- Starting producer... [100] payments took 6.345051222s
-
-19:08:09.297 [info] Number of runnable goroutines: 103
-19:08:09.298 [info] Alloc = 26 MiB
-19:08:09.298 [info]     TotalAlloc = 32 MiB
-19:08:09.298 [info]     Sys = 40 MiB
-19:08:09.298 [info]     NumGC = 2
-```
-
-```shell
- Starting producer... [10000] payments took 3m57.345834924s
-
-19:56:36.785 [info] Number of runnable goroutines: 101
-19:56:36.785 [info] Alloc = 45 MiB
-19:56:36.785 [info]     TotalAlloc = 348 MiB
-19:56:36.785 [info]     Sys = 61 MiB
-19:56:36.785 [info]     NumGC = 15
-```
+Example output:
 
 * Workers: 1000
 
 ```shell
- Starting producer... [10000] payments took 27.483902633s
+ Starting producer... [100] payments took 6.345051222s 
+ 
++-------------------------------------------+--------+
+| WORKFLOW                                  |  COUNT |
++-------------------------------------------+--------+
+| [Initiated Validated Accounted Completed] |  49979 |
+| [Initiated Validated Failed]              |   5493 |
+| [Initiated Failed]                        |   5707 |
+| [Initiated Validated Accounted Canceled]  |  11131 |
+| [Initiated Validated Accounted Failed]    |   5455 |
+| [Initiated Validated Rejected]            |   5661 |
+| [Initiated Rejected]                      |  11062 |
+| [Initiated Validated Accounted Rejected]  |   5512 |
++-------------------------------------------+--------+
+| TOTAL                                     | 100000 |
++-------------------------------------------+--------+ 
+ 
++-----------+-----------------+
+| STATUS    | PRODUCED EVENTS |
++-----------+-----------------+
+| Canceled  |           11131 |
+| Validated |           83231 |
+| Accounted |           72077 |
+| Rejected  |           22235 |
+| Initiated |          100000 |
+| Completed |           49979 |
+| Failed    |           16655 |
++-----------+-----------------+
+| TOTAL     |          355308 |
++-----------+-----------------+
 
-20:00:50.305 [info] Number of runnable goroutines: 1003
-20:00:50.306 [info] Alloc = 36 MiB
-20:00:50.306 [info]     TotalAlloc = 259 MiB
-20:00:50.306 [info]     Sys = 78 MiB
-20:00:50.306 [info]     NumGC = 11
+13:00:27.378 [info] Generating... [100000] payments took 7m4.681126557s
+
 ```
