@@ -229,7 +229,6 @@ Example output:
 * Workers: 1000
 
 ```shell
- Starting producer... [100] payments took 6.345051222s 
  
 +-------------------------------------------+--------+
 | WORKFLOW                                  |  COUNT |
