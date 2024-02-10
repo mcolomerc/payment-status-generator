@@ -126,12 +126,28 @@ func (p Producer) Produce(payment model.Payment) {
 		logger.Info("Failed to produce message: %s\n", err)
 		os.Exit(1)
 	}
-	// Flush and close the producer and the events channel
-	//for p.kafka.Flush(10000) > 0 {
-	//	log.Printf(" Still waiting to flush outstanding messages ")
-	//}
-	// close(done)
-	//p.kafka.Close()
+}
+
+func (p Producer) ProduceBank(bank model.Bank) {
+	// Get topic
+	topic := "banks"
+	// Serialize Payment
+	payload, err := p.ser.Serialize(topic, &bank)
+	if err != nil {
+		logger.Info("Failed to serialize payload: %s\n", err)
+		os.Exit(1)
+	}
+	// Produce Payment status update
+	err = p.kafka.Produce(&kafka.Message{
+		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
+		Key:            []byte(bank.Id),
+		Value:          payload,
+		Headers:        []kafka.Header{{Key: bank.Id, Value: []byte(bank.BankCode)}},
+	}, nil)
+	if err != nil {
+		logger.Info("Failed to produce message: %s\n", err)
+		os.Exit(1)
+	}
 }
 
 func (p Producer) Close() {

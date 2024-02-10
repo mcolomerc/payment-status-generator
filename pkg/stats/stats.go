@@ -12,12 +12,14 @@ type Stats struct {
 	sync      sync.Mutex
 	states    map[string]int
 	workflows map[string]int
+	banks     map[string]int
 }
 
 func NewStats() *Stats {
 	s := Stats{}
 	s.states = make(map[string]int)
 	s.workflows = make(map[string]int)
+	s.banks = make(map[string]int)
 	return &s
 }
 
@@ -37,9 +39,16 @@ func (s *Stats) AddWorkflow(workflow string) {
 	s.sync.Unlock()
 }
 
+func (s *Stats) AddBank(bank string) {
+	s.sync.Lock()
+	s.banks[bank] += 1
+	s.sync.Unlock()
+}
+
 func (s *Stats) Print() {
 	s.PrintWorkflows()
 	s.PrintStates()
+	s.PrintBanks()
 	fmt.Println("\n ")
 }
 
@@ -71,5 +80,20 @@ func (s *Stats) PrintStates() {
 	}
 	t.AppendSeparator()
 	t.AppendFooter(table.Row{"Total", total})
+	t.Render()
+}
+
+func (s *Stats) PrintBanks() {
+	fmt.Println("\n ")
+	t := table.NewWriter()
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"Bank", "Updated times"})
+
+	for bank, count := range s.banks {
+		t.AppendRow([]interface{}{bank, count})
+
+	}
+	t.AppendSeparator()
+
 	t.Render()
 }

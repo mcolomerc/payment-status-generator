@@ -1,0 +1,18 @@
+{
+    "namespace": "confluent.io.examples.serialization.avro",
+    "name": "Bank",
+    "type": "record",
+    "fields": [
+        {"name": "id", "type": "string"},
+        {"name": "name", "type": "string"}, 
+        {"name": "country", "type": "string"}, 
+        {"name": "email", "type": "string"},
+        {"name": "website", "type": "string"},
+        {"name": "bankCode", "type": "string"},
+        {"name": "bic", "type": "string"},
+        {"name": "branch", "type": "string"}, 
+        {"name": "created_ts", "type": "string"},
+        {"name": "updated_ts", "type": "string"},
+        {"name": "version", "type": "int"} 
+    ]
+}

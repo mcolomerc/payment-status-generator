@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	model "mcolomerc/synth-payment-producer/pkg/avro"
 	"mcolomerc/synth-payment-producer/pkg/config"
 	"mcolomerc/synth-payment-producer/pkg/datagen"
@@ -47,14 +48,11 @@ func init() {
 }
 
 func main() {
-
 	for _, st := range datagen.GetStatusList() {
 		sts.AddState(st.String())
 	}
-
 	logger.Info("Starting producer...")
 	logger.With("bootstrap.server", cnf.Kafka.BootstrapServers).Info("Using: ")
-
 	numPayments := cnf.Datagen.Payments
 	message := fmt.Sprintf("Generating... [%v] payments", numPayments)
 	defer timer(message)()
@@ -63,6 +61,10 @@ func main() {
 	logger.With("Topics", cnf.Kafka.Topics).Info("Topics: ")
 	kProd.CreateTopics() // Create topics
 
+	// Generate banks
+	stop := make(chan bool, 1)
+	interval := time.Duration(cnf.Datagen.UpdateBanksInterval)
+	go buildBanks(time.NewTicker(interval*time.Millisecond), stop)
 	// Generate payments
 	paymentsCh := make(chan model.Payment, numPayments)
 	for i := 0; i < numPayments; i++ {
@@ -81,11 +83,37 @@ func main() {
 		workflow := <-done
 		sts.AddWorkflow(workflow) // Add workflow
 	}
+	logger.Info("## Stops the bank updater ##")
+	stop <- true
 	// Close Producer
 	kProd.Flush()
 	kProd.Close()
 	// Print stats
 	sts.Print()
+}
+
+func buildBanks(ticker *time.Ticker, done <-chan bool) {
+	logger.Info("## BANKS ## Generating banks")
+	banks := paymentGenerator.GetBanks() // Get banks
+	for {
+		select {
+		case <-ticker.C:
+			logger.Info("## BANKS ## Updating bank ...")
+			source := rand.NewSource(time.Now().UnixNano())
+			rng := rand.New(source)
+			randIdex := rng.Intn(len(banks))
+			bank := banks[randIdex]
+			bank.Updated_ts = time.Now().Format(time.RFC3339)
+			bank.Version += 1
+			banks[randIdex] = bank
+			logger.Info(" Bank: %v", bank)
+			kProd.ProduceBank(bank)
+			sts.AddBank(bank.Name)
+		case <-done:
+			logger.Info("## BANKS ## Done")
+			return
+		}
+	}
 }
 
 /**

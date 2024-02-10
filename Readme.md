@@ -59,12 +59,52 @@ Delays in milliseconds:
 * Completed: 2000
 * Rejected: 1000
 
-For each generated payment, the worker will pick up a workflow and genereate all status update events following the selected workflow, and it will use the Delay between events to simulate latency between status update events. All the workflow items are executed in parallel with the corresponding delay. 
+For each generated payment, the worker will pick up a workflow and genereate all status update events following the selected workflow, and it will use the Delay between events to simulate latency between status update events. All the workflow items are executed in parallel with the corresponding delay.
+
+## Banks
+
+The generator will create a list of banks to be used as source and destination for the payments. The number of banks is defined by the `NUM_SOURCES` and `NUM_DESTINATIONS` environment variables. The Payment has a source and a destination bank, using the Bank ID from the Bank, the generator will pick up a random bank from the bank list to use as source and other bank as destination for the payment.
+
+Bank AVRO Schema:
+
+```json
+{
+    "namespace": "confluent.io.examples.serialization.avro",
+    "name": "Bank",
+    "type": "record",
+    "fields": [
+        {"name": "id", "type": "string"},
+        {"name": "name", "type": "string"}, 
+        {"name": "country", "type": "string"}, 
+        {"name": "email", "type": "string"},
+        {"name": "website", "type": "string"},
+        {"name": "bankCode", "type": "string"},
+        {"name": "bic", "type": "string"},
+        {"name": "branch", "type": "string"}, 
+        {"name": "created_ts", "type": "string"},
+        {"name": "updated_ts", "type": "string"},
+        {"name": "version", "type": "int"} 
+    ]
+}
+```
+
+The generator will produce the update of a random bank from the bank list.
+
+* Bank names are sufixed with `-bank`.
+  
+* `UPDATE_BANK_INTERVAL`: Number of milliseconds to update a bank. Default: `3000`
+  
+* Updates:
+  
+  * `updated_ts`: Current update Timestamp.
+  
+  * `version`: Increments 1 for each update.
 
 ## Kafka Topics
 
 One topic is used for each payment status update, the producer will try to create the topics if they don't exist:
 
+* *banks*
 * *payment-initiated*
 * *payment-completed*
 * *payment-failed*
@@ -115,6 +155,7 @@ The generator will try to create the topics on the beggining if they don't exist
 On the other hand, create tbe following topics before running the generator.
 
 ```shell
+confluent kafka topic create banks
 confluent kafka topic create payment-initiated
 confluent kafka topic create payment-completed
 confluent kafka topic create payment-failed
@@ -258,6 +299,21 @@ Example output:
 +-----------+-----------------+
 | TOTAL     |          355308 |
 +-----------+-----------------+
+
++----------------+---------------+
+| BANK           | UPDATED TIMES |
++----------------+---------------+
+| alicia-bank    |             1 |
+| shea-bank      |             1 |
+| jocelyn-bank   |             2 |
+| cathrine-bank  |             1 |
+| roselyn-bank   |             1 |
+| lennie-bank    |             1 |
+| virginia-bank  |             2 |
+| ethyl-bank     |             2 |
+| christian-bank |             1 |
+| gretchen-bank  |             1 |
++----------------+---------------+
 
 13:00:27.378 [info] Generating... [100000] payments took 7m4.681126557s
 
