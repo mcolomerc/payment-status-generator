@@ -1,8 +1,8 @@
 package datagen
 
 import (
-	"fmt"
 	"math/rand"
+	"strings"
 
 	model "mcolomerc/synth-payment-producer/pkg/avro"
 	"time"
@@ -11,18 +11,18 @@ import (
 )
 
 type Datagen struct {
-	Sources      []string
-	Destinations []string
+	Sources      []model.Bank
+	Destinations []model.Bank
 }
 
 func NewDatagen(sourcesNum int, destinationsNum int) Datagen {
-	var sources []string
-	var destinations []string
+	var sources []model.Bank
+	var destinations []model.Bank
 	for i := 0; i < sourcesNum; i++ {
-		sources = append(sources, fmt.Sprintf("bank-%v", i))
+		sources = append(sources, generateBank())
 	}
 	for i := 0; i < destinationsNum; i++ {
-		destinations = append(destinations, fmt.Sprintf("bank-%v", i))
+		destinations = append(destinations, generateBank())
 	}
 	return Datagen{
 		Sources:      sources,
@@ -32,7 +32,7 @@ func NewDatagen(sourcesNum int, destinationsNum int) Datagen {
 
 func (d *Datagen) GeneratePayment() model.Payment {
 	// Build Payment
-	max := 9999.0
+	max := 99999.0
 	min := 0.1
 	// Get random source
 	source := d.Sources[rand.Intn(len(d.Sources))]
@@ -40,10 +40,30 @@ func (d *Datagen) GeneratePayment() model.Payment {
 	return model.Payment{
 		Id:          faker.UUIDDigit(),
 		Ts:          time.Now().UnixNano() / 1e6,
-		Destination: destination,
-		Source:      source,
+		Destination: destination.Id,
+		Source:      source.Id,
 		Currency:    faker.Currency(),
 		Amount:      min + rand.Float64()*(max-min),
 		Status:      Initiated.String(),
+	}
+}
+
+func (d *Datagen) GetBanks() []model.Bank {
+	return append(d.Sources, d.Destinations...)
+}
+func generateBank() model.Bank {
+	bankCode := strings.ToLower(faker.FirstName())
+	return model.Bank{
+		Id:         faker.UUIDDigit(),
+		Name:       bankCode + "-bank",
+		Country:    faker.Currency(),
+		Email:      faker.Email(),
+		Website:    faker.URL(),
+		BankCode:   faker.FirstName(),
+		Bic:        faker.UUIDDigit(),
+		Branch:     faker.UUIDDigit(),
+		Updated_ts: time.Now().Format(time.RFC3339),
+		Created_ts: time.Now().Format(time.RFC3339),
+		Version:    0,
 	}
 }

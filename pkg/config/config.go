@@ -18,12 +18,13 @@ type Config struct {
 }
 
 type Datagen struct {
-	Payments     int            `mapstructure:"payments"`
-	Workers      int            `mapstructure:"workers"`
-	Sources      int            `mapstructure:"sources"`
-	Destinations int            `mapstructure:"destinations"`
-	Workflows    map[string]int `mapstructure:"workflows"`
-	Delays       map[string]int `mapstructure:"delays"`
+	Payments            int            `mapstructure:"payments"`
+	Workers             int            `mapstructure:"workers"`
+	Sources             int            `mapstructure:"sources"`
+	Destinations        int            `mapstructure:"destinations"`
+	Workflows           map[string]int `mapstructure:"workflows"`
+	Delays              map[string]int `mapstructure:"delays"`
+	UpdateBanksInterval int            `mapstructure:"updateBanksInterval"`
 }
 
 type SchemaRegistryConfig struct {
@@ -71,6 +72,7 @@ func Build() Config {
 	config.Kafka.SecurityProtocol = getenv("KAFKA_SECURITY_PROTOCOL", "SASL_SSL")
 
 	config.Kafka.Topics = map[string]int{
+		"banks":             1,
 		"payment-initiated": 12,
 		"payment-completed": 12,
 		"payment-failed":    4,
@@ -88,6 +90,7 @@ func Build() Config {
 	config.Datagen.Workers = getenvInt("NUM_WORKERS", 100)
 	config.Datagen.Sources = getenvInt("NUM_SOURCES", 10)
 	config.Datagen.Destinations = getenvInt("NUM_DESTINATIONS", 10)
+	config.Datagen.UpdateBanksInterval = getenvInt("UPDATE_BANKS_INTERVAL", 3000)
 
 	config.Datagen.Workflows = map[string]int{
 		"Initiated, Failed":                          1,
